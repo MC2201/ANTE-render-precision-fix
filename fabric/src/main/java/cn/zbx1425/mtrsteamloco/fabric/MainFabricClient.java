@@ -25,7 +25,7 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptContextManager;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptContextManager;
 
 public class MainFabricClient implements ClientModInitializer {
 
@@ -62,7 +62,6 @@ public class MainFabricClient implements ClientModInitializer {
 							.then(ClientCommandManager.literal("clearDebugInfo")
                                     .executes(context -> {
                                         ScriptContextManager.clearDebugInfo();
-										cn.zbx1425.mtrsteamloco.gui.ScriptDebugOverlay.STATIC.clear();
                                         return 1;
                                     }))
 							.then(ClientCommandManager.literal("stat")

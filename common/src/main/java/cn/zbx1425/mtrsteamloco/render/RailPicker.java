@@ -19,7 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.apache.commons.lang3.StringUtils;
-import cn.zbx1425.mtrsteamloco.data.RailExtraSupplier;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -57,35 +57,26 @@ public class RailPicker {
 
         RailAccessor rail = (RailAccessor)pickedRail;
         double length = pickedRail.getLength();
-        String[] contents;
-        if (((RailExtraSupplier) (Object) pickedRail).getPathMode() == 1) {
-            contents = new String[] {
-                String.format("L%.1fm", pickedRail.getLength()),
-                "BezierCurve"
-            };
+        double gradient = Math.abs(rail.invokeGetPositionY(length / 2 - 0.5) - rail.invokeGetPositionY(length / 2 + 0.5)) * 1000;
+        double radius;
+        if (!rail.getIsStraight1() && !rail.getIsStraight2()) {
+            radius = Math.min(rail.getR1(), rail.getR2());
+        } else if (!rail.getIsStraight1()) {
+            radius = rail.getR1();
+        } else if (!rail.getIsStraight2()) {
+            radius = rail.getR2();
         } else {
-            double radius;
-            double gradient = Math.abs(rail.invokeGetPositionY(length / 2 - 0.5) - rail.invokeGetPositionY(length / 2 + 0.5)) * 1000;
-            if (!rail.getIsStraight1() && !rail.getIsStraight2()) {
-                radius = Math.min(rail.getR1(), rail.getR2());
-            } else if (!rail.getIsStraight1()) {
-                radius = rail.getR1();
-            } else if (!rail.getIsStraight2()) {
-                radius = rail.getR2();
-            } else {
-                radius = 0;
-            }
-            contents = new String[] {
-                String.format("L%.1fm", pickedRail.getLength()),
-                String.format("R%.1fm P%.1f‰", radius, gradient)
-            };
+            radius = 0;
         }
-        
 
-         
+        String[] contents = new String[] {
+            String.format("L%.1fm", pickedRail.getLength()),
+            String.format("R%.1fm P%.1f‰", radius, gradient)
+        };
 
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         matrices.pushPose();
-        matrices.translate(pickedPosStart.getX(), pickedPosStart.getY(), pickedPosStart.getZ());
+        matrices.translate(pickedPosStart.getX() - cameraPos.x, pickedPosStart.getY() - cameraPos.y, pickedPosStart.getZ() - cameraPos.z);
         matrices.translate(0.5, 0.5, 0.5);
         matrices.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
         matrices.scale(-0.025F, -0.025F, 0.025F);

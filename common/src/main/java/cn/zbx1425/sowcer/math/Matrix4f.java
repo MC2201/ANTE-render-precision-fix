@@ -4,7 +4,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-public class Matrix4f implements Posture {
+public class Matrix4f {
 
 #if MC_VERSION >= "11903"
 
@@ -17,10 +17,6 @@ public class Matrix4f implements Posture {
     public Matrix4f(org.joml.Matrix4f moj) {
         this.impl = moj;
     }
-
-    public Matrix4f(Matrix3f mat3) {
-        this.impl = new org.joml.Matrix4f(mat3.asMoj());
-    } 
 
     public Matrix4f(Matrix4f other) {
         this.impl = new org.joml.Matrix4f(other.impl);
@@ -42,10 +38,6 @@ public class Matrix4f implements Posture {
 
     public void multiply(Matrix4f other) {
         impl.mul(other.impl);
-    }
-
-    public void multiply(Quaternionf q) {
-        impl.rotate(q.asMoj());
     }
 
     public void store(FloatBuffer buffer) {
@@ -131,32 +123,6 @@ public class Matrix4f implements Posture {
         this.impl = moj;
     }
 
-    public Matrix4f(Matrix3f mat3) {
-        this();
-        float[] srcValues = new float[9];
-        FloatBuffer srcFloatBuffer = FloatBuffer.wrap(srcValues);
-        mat3.store(srcFloatBuffer);
-        float[] dstValues = new float[16];
-        dstValues[0] = srcValues[0];
-        dstValues[1] = srcValues[1];
-        dstValues[2] = srcValues[2];
-        dstValues[3] = 0.0F;
-        dstValues[4] = srcValues[3];
-        dstValues[5] = srcValues[4];
-        dstValues[6] = srcValues[5];
-        dstValues[7] = 0.0F;
-        dstValues[8] = srcValues[6];
-        dstValues[9] = srcValues[7];
-        dstValues[10] = srcValues[8];
-        dstValues[11] = 0.0F;
-        dstValues[12] = 0.0F;
-        dstValues[13] = 0.0F;
-        dstValues[14] = 0.0F;
-        dstValues[15] = 1.0F;
-        FloatBuffer dstFloatBuffer = FloatBuffer.wrap(dstValues);
-        load(dstFloatBuffer);
-    }
-
     public Matrix4f(Matrix4f other) {
         this.impl = other.impl.copy();
     }
@@ -177,10 +143,6 @@ public class Matrix4f implements Posture {
 
     public void multiply(Matrix4f other) {
         impl.multiply(other.impl);
-    }
-
-    public void multiply(Quaternionf q) {
-        impl.multiply(q.asMoj());
     }
 
     public void store(FloatBuffer buffer) {
@@ -245,17 +207,28 @@ public class Matrix4f implements Posture {
     }
 
     public void scale(float x, float y, float z) {
-        multiply(new Matrix4f(com.mojang.math.Matrix4f.createScaleMatrix(x, y, z)));
+        float[] values = new float[16];
+        FloatBuffer floatBuffer = FloatBuffer.wrap(values);
+        impl.store(floatBuffer);
+        values[0] *= x;
+        values[1] *= x;
+        values[2] *= x;
+        values[3] *= x;
+        values[4] *= y;
+        values[5] *= y;
+        values[6] *= y;
+        values[7] *= y;
+        values[8] *= z;
+        values[9] *= z;
+        values[10] *= z;
+        values[11] *= z;
+        impl.load(FloatBuffer.wrap(values));
     }
 
 #endif
 
     public void mul(Matrix4f other) {
         multiply(other);
-    }
-
-    public void scale(float factor) {
-        scale(factor, factor, factor);
     }
 
     public void translate(Vector3f vec) {
@@ -361,31 +334,6 @@ public class Matrix4f implements Posture {
         }
         sb.append("]");
         return sb.toString();
-    }
-
-    @Override
-    public Matrix4f getAsMatrix4f() {
-        return this;
-    }
-
-    @Override
-    public Matrix3f getAsMatrix3f() {
-        return new Matrix3f(this);
-    }
-
-    @Override
-    public Pose getAsPose() {
-        return new Pose(this);
-    }
-
-    @Override
-    public PoseStack getAsPoseStack() {
-        return new PoseStack(getAsPose());
-    }
-
-    @Override
-    public Matrices getAsMatrices() {
-        return new Matrices(this);
     }
 
     public static final Matrix4f IDENTITY = new Matrix4f();

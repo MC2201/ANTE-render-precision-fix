@@ -1,6 +1,5 @@
 package cn.zbx1425.mtrsteamloco.data;
 
-import net.minecraft.core.BlockPos;
 import mtr.data.Rail;
 import mtr.data.RailType;
 import net.minecraft.util.Mth;
@@ -54,26 +53,6 @@ public interface RailExtraSupplier {
 
     float getRollingOffset();
 
-    boolean isStraightOnly();
-
-    void changePathMode(int mode);
-
-    int getPathMode();
-
-    boolean isBetween(double x, double y, double z, double radius);
-
-    Rail getTransposition(RailType railType);
-
-    void setBezier(BezierCurve bezier);
-
-    boolean couldSwitchModeTo(int mode);
-
-    void sendUpdateC2S();
-
-    BlockPos getPosStart();
-
-    BlockPos getPosEnd();
-
     static float getVTheta(Rail rail, double verticalCurveRadius) {
         double H = Math.abs(((RailExtraSupplier) rail).getHeight());
         double L = rail.getLength();
@@ -85,38 +64,33 @@ public interface RailExtraSupplier {
         Map<Double, Float> rollAngleMap = ((RailExtraSupplier) rail).getRollAngleMap();
         boolean reversed = ((RailExtraSupplier) rail).getRenderReversed();
         float k = reversed ? -1F : 1F;
-        
         if (reversed) {
             value = rail.getLength() - value;
         }
-        
         if (rollAngleMap.isEmpty()) {
             return 0;
         }
-        
         List<Double> keys = new ArrayList<>(rollAngleMap.keySet());
         keys.sort(Double::compareTo);
-        
         if (value <= keys.get(0)) {
-            return k * rollAngleMap.get(keys.get(0));
+            return (float) k * rollAngleMap.get(keys.get(0));
         }
-        
         int size = keys.size();
         if (value >= keys.get(size - 1)) {
-            return k * rollAngleMap.get(keys.get(size - 1));
+            return (float) k * rollAngleMap.get(keys.get(size - 1));
         }
-        
-        double lastKey = keys.get(0);
+        double last = keys.get(0);
         for (int i = 1; i < size; i++) {
-            double currentKey = keys.get(i);
-            if (lastKey <= value && value < currentKey) {
-                double t = (value - lastKey) / (currentKey - lastKey);
-                double cosFactor = (1 - Math.cos(t * Math.PI)) / 2.0;
-                float interpolated = (float) (rollAngleMap.get(lastKey) * (1 - cosFactor) 
-                                            + rollAngleMap.get(currentKey) * cosFactor);
+            double t = keys.get(i);
+            if (last <= value && value < t) {
+                float a0 = rollAngleMap.get(last);
+                float a1 = rollAngleMap.get(t);
+                double alpha = (value - last) / (t - last);
+                double smoothedAlpha = (1 - Math.cos(alpha * Math.PI)) / 2;
+                float interpolated = a0 + (a1 - a0) * (float) smoothedAlpha;
                 return k * interpolated;
             }
-            lastKey = currentKey;
+            last = t;
         }
         return 0;
     }

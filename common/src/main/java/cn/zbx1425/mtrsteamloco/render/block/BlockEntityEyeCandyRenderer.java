@@ -6,8 +6,8 @@ import cn.zbx1425.mtrsteamloco.data.EyeCandyProperties;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyRegistry;
 import cn.zbx1425.mtrsteamloco.render.ShadersModHandler;
 import cn.zbx1425.mtrsteamloco.render.rail.RailRenderDispatcher;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptContextManager;
-import cn.zbx1425.mtrsteamloco.scripting.eyecandy.EyeCandyScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptContextManager;
+import cn.zbx1425.mtrsteamloco.render.scripting.eyecandy.EyeCandyScriptContext;
 import cn.zbx1425.sowcer.math.Matrix4f;
 import cn.zbx1425.sowcer.math.PoseStackUtil;
 import cn.zbx1425.sowcerext.model.ModelCluster;
@@ -70,6 +70,7 @@ public class BlockEntityEyeCandyRenderer extends BlockEntityRendererMapper<Block
 
     public static void commit(@NotNull PoseStack matrices, @NotNull MultiBufferSource vertexConsumers) {
         Matrix4f worldPose = new Matrix4f(matrices.last().pose()).copy();
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         HashSet<BlockEyeCandy.BlockEntityEyeCandy> temp = new HashSet<>(entitysToRender);
         for (BlockEyeCandy.BlockEntityEyeCandy blockEntity : temp) {
             if (blockEntity == null) continue;
@@ -85,7 +86,7 @@ public class BlockEntityEyeCandyRenderer extends BlockEntityRendererMapper<Block
             EyeCandyProperties prop = EyeCandyRegistry.getProperty(blockEntity.prefabId);
             if (prop == null || RailRenderDispatcher.isHoldingBrush) {
                 matrices.pushPose();
-                matrices.translate(pos.getX(), pos.getY(), pos.getZ());
+                matrices.translate(pos.getX() - cameraPos.x, pos.getY() - cameraPos.y, pos.getZ() - cameraPos.z);
                 matrices.translate(0.5f, 0.5f, 0.5f);
                 PoseStackUtil.rotY(matrices, (float) ((System.currentTimeMillis() % 1000) * (Math.PI * 2 / 1000)));
 #if MC_VERSION >= "11904"
@@ -107,7 +108,17 @@ public class BlockEntityEyeCandyRenderer extends BlockEntityRendererMapper<Block
             if (prop == null) continue;
             
             Matrix4f candyPose = worldPose.copy();
-            candyPose.mul(blockEntity.getBaseMatrix());
+            // Camera-relative transform computed in double precision to avoid float jitter at large coordinates
+            final Direction facing = IBlock.getStatePropertySafe(blockEntity.getBlockState(), BlockEyeCandy.FACING);
+            candyPose.translate(
+                (float)(blockEntity.getWorldPos().getX() + 0.5 + blockEntity.translateX - cameraPos.x),
+                (float)(blockEntity.getWorldPos().getY() + blockEntity.translateY - cameraPos.y),
+                (float)(blockEntity.getWorldPos().getZ() + 0.5 + blockEntity.translateZ - cameraPos.z)
+            );
+            candyPose.rotateX(blockEntity.rotateX);
+            candyPose.rotateY(blockEntity.rotateY + (float) Math.toRadians(180F - facing.toYRot()));
+            candyPose.rotateZ(blockEntity.rotateZ);
+            candyPose.scale(blockEntity.scaleX, blockEntity.scaleY, blockEntity.scaleZ);
             if (prop.model != null) {
                 MainClient.drawScheduler.enqueue(prop.model, candyPose, lightToUse);
             }

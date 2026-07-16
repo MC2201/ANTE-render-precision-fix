@@ -48,7 +48,7 @@ public abstract class ItemWithCreativeTabBaseMixin extends Item {
                         // BrushEditRailScreen.acquirePickInfoWhenUse();
                         return super.useOn(context);
                     } else {
-                        PacketScreen.sendScreenS2C((ServerPlayer) context.getPlayer(), "brush_edit_rail");
+                        PacketScreen.sendScreenBlockS2C((ServerPlayer) context.getPlayer(), "brush_edit_rail", BlockPos.ZERO);
                     }
                 } else {
                     if (level.isClientSide) {

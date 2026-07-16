@@ -26,13 +26,12 @@
 		]
 	},
 	"mixins": [
-		"mtrsteamloco.mixins.json",
-		"mtrsteamloco_fabric.mixins.json"
+		"mtrsteamloco.mixins.json"
 	],
 	"depends": {
 		"fabric": "*",
 		"minecraft": "${minecraft_version}",
 		"mtr": ">=${mtr_min_version}"
 	},
-	"accessWidener" : "mtrsteamloco_filtered.accesswidener"
+	"accessWidener" : "mtrsteamloco.accesswidener"
 }

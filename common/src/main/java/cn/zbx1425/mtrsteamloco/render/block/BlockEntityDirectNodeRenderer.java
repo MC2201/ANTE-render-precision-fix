@@ -6,8 +6,8 @@ import cn.zbx1425.mtrsteamloco.data.EyeCandyProperties;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyRegistry;
 import cn.zbx1425.mtrsteamloco.render.ShadersModHandler;
 import cn.zbx1425.mtrsteamloco.render.rail.RailRenderDispatcher;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptContextManager;
-import cn.zbx1425.mtrsteamloco.scripting.eyecandy.EyeCandyScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptContextManager;
+import cn.zbx1425.mtrsteamloco.render.scripting.eyecandy.EyeCandyScriptContext;
 import cn.zbx1425.sowcer.math.Matrix4f;
 import cn.zbx1425.sowcer.math.PoseStackUtil;
 import cn.zbx1425.sowcerext.model.ModelCluster;
@@ -105,6 +105,7 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRendererMapper<Blo
     public static void commit(@NotNull PoseStack matrices, @NotNull MultiBufferSource vertexConsumers) {
         if (VERTICAL_MODEL == null || CONNECTION_MODEL == null) return;
         Matrix4f worldPose = new Matrix4f(matrices.last().pose()).copy();
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         HashSet<BlockEntityDirectNode> temp = new HashSet<>(entitysToRender);
         for (BlockEntityDirectNode blockEntity : temp) {
             if (blockEntity == null) continue;
@@ -116,7 +117,7 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRendererMapper<Blo
 
             Matrix4f basePose = worldPose.copy();
             final BlockPos pos = blockEntity.getBlockPos();
-            basePose.translate(pos.getX() + 0.5F, pos.getY() + 0.5F, pos.getZ() + 0.5F);
+            basePose.translate((float)(pos.getX() - cameraPos.x) + 0.5F, (float)(pos.getY() - cameraPos.y) + 0.5F, (float)(pos.getZ() - cameraPos.z) + 0.5F);
 
             RailAngle railAngle = blockEntity.getRailAngle();
             if (railAngle == null) {

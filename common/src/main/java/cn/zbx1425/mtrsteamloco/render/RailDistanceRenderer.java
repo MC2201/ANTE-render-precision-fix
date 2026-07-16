@@ -43,7 +43,7 @@ public class RailDistanceRenderer {
     private static void render(Rail rail, PoseStack matrices, MultiBufferSource vertexConsumers) {
         double length = rail.getLength();
         int interval = ClientConfig.railDistanceRendererInterval;
-        for (int i = 0; i < length - interval; i += interval) {
+        for (int i = 0; i < length - 5; i += 5) {
             render(rail, i, new String[] { Integer.toString(i) , ""}, matrices, vertexConsumers);
         }
         render(rail, length - 1E-4, new String[] { "", String.format("%.1f", length - 1E-4)}, matrices, vertexConsumers);
@@ -75,7 +75,7 @@ public class RailDistanceRenderer {
         final float roll = RailExtraSupplier.getRollAngle(rail, i);
 
         matrices.pushPose();
-        matrices.translate((float) last.x, (float) last.y, (float) last.z);
+        matrices.translate((float)(last.x - cameraPos.x), (float)(last.y - cameraPos.y), (float)(last.z - cameraPos.z));
         PoseStackUtil.rotY(matrices, yaw);
         PoseStackUtil.rotX(matrices, -pitch);
         PoseStackUtil.rotZ(matrices, roll);// ((RailExtraSupplier) rail).getRenderReversed() ? -roll : 

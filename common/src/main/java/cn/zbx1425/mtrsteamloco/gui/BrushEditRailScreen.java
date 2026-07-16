@@ -75,7 +75,6 @@ import me.shedaniel.clothconfig2.api.Tooltip;
 import me.shedaniel.math.Point;
 import cn.zbx1425.mtrsteamloco.network.util.DoubleFloatMapSerializer;
 import cn.zbx1425.mtrsteamloco.gui.entries.*;
-import net.minecraft.world.InteractionHand;
 import cn.zbx1425.mtrsteamloco.network.PacketReplaceRailNode;
 
 import java.util.List;
@@ -164,7 +163,7 @@ public class BrushEditRailScreen {
                     common.addEntry(
                         ButtonListEntry.createCenteredInstance(
                             Text.translatable("gui.mtrsteamloco.brush_edit_rail.switch_to_direct_node"),
-                            btn -> PacketReplaceRailNode.sendUpdateC2S(minecraft.level, pickedPosStart, state, "brush_edit_rail")
+                            btn -> PacketReplaceRailNode.sendUpdateC2S(pickedPosStart, state, "brush_edit_rail")
                         )
                     );
                 }
@@ -240,15 +239,11 @@ public class BrushEditRailScreen {
             );
 
             if (enableModelKey) {
-                RailModelProperties properties = RailModelRegistry.ELEMENTS.get(modelKey);
+                RailModelProperties properties = RailModelRegistry.elements.get(modelKey);
                 common.addEntry(ButtonListEntry.createCenteredInstance(
                     Text.translatable("gui.mtrsteamloco.brush_edit_rail.present", (properties != null ? (properties.name.getString()) : (modelKey + " (???)"))),
-                    btn -> Minecraft.getInstance().setScreen(new SelectScreen(() -> createScreen(pickedRail, pickedPosStart, pickedPosEnd, parent), RailModelRegistry.TREE, supplier::getModelKey, (mc, screen, btnKey) -> {
-                        BrushEditRailScreen.updateBrushTag(compoundTag -> compoundTag.putString("ModelKey", btnKey));
-                        ((RailExtraSupplier) pickedRail).setModelKey(btnKey);
-                        PacketUpdateRail.sendUpdateC2S(pickedRail, pickedPosStart, pickedPosEnd);
-                    } ,"https://aphrodite281.github.io/mtr-ante/#/railmodel")))
-                );
+                    btn -> Minecraft.getInstance().setScreen(new SelectScreen())
+                ));
             }
 
             boolean enableVertCurveRadius = brushTag != null && brushTag.contains("VerticalCurveRadius");
@@ -448,34 +443,96 @@ public class BrushEditRailScreen {
 
     public static CompoundTag getBrushTag() {
         if (Minecraft.getInstance().player == null) return null;
-        ItemStack mainHandItem = Minecraft.getInstance().player.getMainHandItem();
-        ItemStack offHandItem = Minecraft.getInstance().player.getOffhandItem();
-        CompoundTag nteTag = null;
-        if (mainHandItem.is(mtr.Items.BRUSH.get())) {
-            nteTag = mainHandItem.getTagElement("NTERailBrush");
-        } else if (offHandItem.is(mtr.Items.BRUSH.get())) {
-            nteTag = offHandItem.getTagElement("NTERailBrush");
-        }
+        ItemStack brushItem = Minecraft.getInstance().player.getMainHandItem();
+        if (!brushItem.is(mtr.Items.BRUSH.get())) return null;
+        CompoundTag nteTag = brushItem.getTagElement("NTERailBrush");
         return nteTag;
     }
 
     public static void updateBrushTag(Consumer<CompoundTag> modifier) {
         if (Minecraft.getInstance().player == null) return;
-        ItemStack mainHandItem = Minecraft.getInstance().player.getMainHandItem();
-        ItemStack offHandItem = Minecraft.getInstance().player.getOffhandItem();
-        CompoundTag nteTag = null;
-        InteractionHand hand = null;
-        if (mainHandItem.is(mtr.Items.BRUSH.get())) {
-            nteTag = mainHandItem.getOrCreateTagElement("NTERailBrush");
-            hand = InteractionHand.MAIN_HAND;
-        } else if (offHandItem.is(mtr.Items.BRUSH.get())) {
-            nteTag = offHandItem.getOrCreateTagElement("NTERailBrush");
-            hand = InteractionHand.OFF_HAND;
-        }
-        if (nteTag == null) return;
+        ItemStack brushItem = Minecraft.getInstance().player.getMainHandItem();
+        if (!brushItem.is(mtr.Items.BRUSH.get())) return;
+        CompoundTag nteTag = brushItem.getOrCreateTagElement("NTERailBrush");
         modifier.accept(nteTag);
         applyBrushToPickedRail(nteTag, false);
-        PacketUpdateHoldingItem.sendUpdateC2S(hand);
+        PacketUpdateHoldingItem.sendUpdateC2S();
+    }
+
+    private class SelectScreen extends SelectListScreen {
+
+        private static final String INSTRUCTION_LINK = "https://aphrodite281.github.io/mtr-ante/#/railmodel";
+        private final WidgetLabel lblInstruction = new WidgetLabel(0, 0, 0, Text.translatable("gui.mtrsteamloco.eye_candy.tip_resource_pack"), () -> {
+            this.minecraft.setScreen(new ConfirmLinkScreen(bl -> {
+                if (bl) {
+                    Util.getPlatform().openUri(INSTRUCTION_LINK);
+                }
+                this.minecraft.setScreen(this);
+            }, INSTRUCTION_LINK, true));
+        });
+
+        public SelectScreen() {
+            super(Text.literal("Select rail arguments"));
+        }
+
+        @Override
+        protected void init() {
+            super.init();
+
+            loadPage();
+        }
+
+        @Override
+        protected void loadPage() {
+            clearWidgets();
+
+            CompoundTag brushTag = getBrushTag();
+            String modelKey = brushTag == null ? "" : brushTag.getString("ModelKey");
+            scrollList.visible = true;
+            loadSelectPage(key -> !key.equals(modelKey));
+            lblInstruction.alignR = true;
+            IDrawing.setPositionAndWidth(lblInstruction, width / 2 + SQUARE_SIZE, height - SQUARE_SIZE - TEXT_HEIGHT, 0);
+            lblInstruction.setWidth(width / 2 - SQUARE_SIZE * 2);
+            addRenderableWidget(lblInstruction);
+        }
+
+        @Override
+        protected void onBtnClick(String btnKey) {
+            BrushEditRailScreen.updateBrushTag(compoundTag -> {
+                compoundTag.putString("ModelKey", btnKey);
+                applyBrushToPickedRail(pickedPosStart, pickedPosEnd, pickedRail, compoundTag, false);
+            });            
+        }
+
+        @Override
+        protected List<Pair<String, String>> getRegistryEntries() {
+            return new HashSet<>(RailModelRegistry.elements.entrySet()).stream()
+                    .filter(e -> !e.getValue().name.getString().isEmpty())
+                    .map(e -> new Pair<>(e.getKey(), e.getValue().name.getString()))
+                    .toList();
+        }
+
+        @Override
+    #if MC_VERSION >= "12000"
+        public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    #else
+        public void render(PoseStack guiGraphics, int mouseX, int mouseY, float partialTick) {
+    #endif
+            this.renderBackground(guiGraphics);
+            super.render(guiGraphics, mouseX, mouseY, partialTick);
+
+            renderSelectPage(guiGraphics);
+        }
+
+        @Override
+        public void onClose() {
+            this.minecraft.setScreen(BrushEditRailScreen.createScreen(pickedRail, pickedPosStart, pickedPosEnd, parent));
+        }
+
+        @Override
+        public boolean isPauseScreen() {
+            return true;
+        }
     }
     
     @Environment(EnvType.CLIENT)

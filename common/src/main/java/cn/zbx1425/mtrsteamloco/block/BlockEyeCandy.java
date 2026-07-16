@@ -2,13 +2,14 @@ package cn.zbx1425.mtrsteamloco.block;
 
 import cn.zbx1425.mtrsteamloco.Main;
 import cn.zbx1425.mtrsteamloco.network.PacketScreen;
-import cn.zbx1425.mtrsteamloco.scripting.eyecandy.EyeCandyScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.eyecandy.EyeCandyScriptContext;
 import cn.zbx1425.sowcer.math.Vector3f;
 import mtr.mappings.BlockDirectionalMapper;
 import mtr.mappings.BlockEntityClientSerializableMapper;
 import mtr.mappings.BlockEntityMapper;
 import mtr.mappings.EntityBlockMapper;
 import net.minecraft.core.BlockPos;
+import mtr.client.ClientData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -35,11 +36,14 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import mtr.block.IBlock;
+import net.minecraft.client.Minecraft;
+import mtr.MTRClient;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import java.util.Random;
@@ -53,11 +57,12 @@ import net.minecraft.world.phys.Vec3;
 import mtr.mappings.Utilities;
 import mtr.SoundEvents;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyRegistry;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptHolderBase;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptHolder;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyProperties;
 import cn.zbx1425.mtrsteamloco.data.ShapeSerializer;
 import cn.zbx1425.mtrsteamloco.data.ConfigResponder;
 import mtr.mappings.Text;
+import net.minecraft.client.gui.screens.Screen;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import net.minecraft.world.phys.AABB;
 import me.shedaniel.clothconfig2.impl.builders.TextDescriptionBuilder;
@@ -116,7 +121,7 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (blockEntity instanceof BlockEntityEyeCandy) {
                     BlockEntityEyeCandy blockEntityEyeCandy = (BlockEntityEyeCandy) blockEntity;
-                    blockEntityEyeCandy.tryCallUseFunctionAsync(player);
+                    blockEntityEyeCandy.tryCallBeClickedFunctionAsync(player);
                 } else {
                     Main.LOGGER.warn("BlockEntityEyeCandy not found at " + pos + ", " + level);
                     return InteractionResult.PASS;
@@ -235,7 +240,6 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
         public boolean isTicketBarrier = false;
         public boolean isEntrance = false;
 
-
         public BlockEntityEyeCandy(BlockPos pos, BlockState state) {
             super(Main.BLOCK_ENTITY_TYPE_EYE_CANDY.get(), pos, state);
             customConfigs = new HashMap<>();
@@ -314,9 +318,8 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
             final Matrix4f matrix = new Matrix4f();
             BlockPos pos = getWorldPos();
             matrix.translate(pos.getX() + 0.5F + translateX, pos.getY() + translateY, pos.getZ() + 0.5F + translateZ);
-            matrix.rotateY((float) Math.toRadians(180F - facing.toYRot()));
             matrix.rotateX(rotateX);
-            matrix.rotateY(rotateY);
+            matrix.rotateY(rotateY + (float) Math.toRadians(180F - facing.toYRot()));
             matrix.rotateZ(rotateZ);
             matrix.scale(scaleX, scaleY, scaleZ);
             return matrix;
@@ -331,7 +334,7 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
             prefabId = new1;
             if ((old == null && prefabId != null) || (old != null && !old.equals(prefabId))) {
                 restore();
-            } else if (getProperties().script != null && scriptContext == null) {
+            } else if (getProperties() != null && scriptContext == null) {
                 scriptContext = new EyeCandyScriptContext(this);
             }
         }
@@ -463,13 +466,13 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
             return property != null ? property : EyeCandyProperties.DEFAULT;
         }
 
-        public void tryCallUseFunctionAsync(Player player) {
+        public void tryCallBeClickedFunctionAsync(Player player) {
             if (scriptContext == null) return;
             EyeCandyProperties prop = getProperties();
             if (prop == null) return;
-            ScriptHolderBase scriptHolder = prop.script;
+            ScriptHolder scriptHolder = prop.script;
             if (scriptHolder == null) return;
-            scriptHolder.tryCallUseFunctionAsync(scriptContext, player);
+            scriptHolder.tryCallBeClickedFunctionAsync(scriptContext, player);
         }
 
         public Map<String, String> getCustomConfigs() {
@@ -496,6 +499,10 @@ public class BlockEyeCandy extends BlockDirectionalMapper implements EntityBlock
 
         public void putCustomConfig(String key, String value) {
             customConfigs.put(key, value);
+        }
+
+        public List<AbstractConfigListEntry> getCustomConfigEntrys(ConfigEntryBuilder builder, Supplier<Screen> screenSupplier) {
+            return ConfigResponder.getEntrysFromMaps(customConfigs, customResponders, builder, screenSupplier);
         }
     }
 }

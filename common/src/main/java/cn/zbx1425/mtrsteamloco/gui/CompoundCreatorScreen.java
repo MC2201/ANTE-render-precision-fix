@@ -58,7 +58,6 @@ import net.minecraft.core.Direction;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.GameRenderer;
 import mtr.data.*;
-import cn.zbx1425.mtrsteamloco.util.PinyinUtils;
 import cn.zbx1425.mtrsteamloco.gui.entries.*;
 import static cn.zbx1425.mtrsteamloco.item.CompoundCreator.*;
 
@@ -593,7 +592,7 @@ public class CompoundCreatorScreen extends Screen {
         RailExtraSupplier extra = (RailExtraSupplier) rail;
 
         String modelKey = extra.getModelKey();
-        RailModelProperties properties = RailModelRegistry.ELEMENTS.get(modelKey);
+        RailModelProperties properties = RailModelRegistry.elements.get(modelKey);
         Button btnEnterSelect = UtilitiesClient.newButton(Text.translatable("gui.mtrsteamloco.brush_edit_rail.present", (properties != null ? (properties.name.getString()) : (modelKey + " (???)"))), btn -> {
             Minecraft.getInstance().setScreen(new SelectScreen(task, () -> {
                 task0.copyFrom(task);
@@ -731,7 +730,7 @@ public class CompoundCreatorScreen extends Screen {
 
         @Override
         protected List<Pair<String, String>> getRegistryEntries() {
-            return new HashSet<>(RailModelRegistry.ELEMENTS.entrySet()).stream()
+            return new HashSet<>(RailModelRegistry.elements.entrySet()).stream()
                     .filter(e -> !e.getValue().name.getString().isEmpty())
                     .map(e -> new Pair<>(e.getKey(), e.getValue().name.getString()))
                     .toList();
@@ -1361,22 +1360,24 @@ public class CompoundCreatorScreen extends Screen {
                     searchedList = new ArrayList<>(blocksList);
                     return;
                 }
-                str = str.toLowerCase();
-                List<Square> list = new ArrayList<>();
-                for (Square square : blocksList) {
-                    String blockName = square.state.getBlock().getName().getString().toLowerCase();
-                    String di = square.state.getBlock().getDescriptionId().toLowerCase();
-                    if (blockName.contains(str) || di.contains(str)) {
-                        list.add(square);
-                    } else {
-                        String pinyin = PinyinUtils.getPinyin(blockName);
-                        String initials = PinyinUtils.getPinyinInitials(blockName);
-                        if (pinyin.contains(str) || initials.contains(str)) {
+                if (str.startsWith("#")) {
+                    str = str.substring(1);
+                    List<Square> list = new ArrayList<>();
+                    for (Square square : blocksList) {
+                        if (square.state.getBlock().getDescriptionId().contains(str)) {
                             list.add(square);
                         }
                     }
+                    searchedList = list;
+                } else {
+                    List<Square> list = new ArrayList<>();
+                    for (Square square : blocksList) {
+                        if (square.state.getBlock().getName().getString().contains(str)) {
+                            list.add(square);
+                        }
+                    }
+                    searchedList = list;
                 }
-                searchedList = list;
             }
 
         #if MC_VERSION >= "12000"

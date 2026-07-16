@@ -39,6 +39,9 @@ import cn.zbx1425.mtrsteamloco.Main;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.InteractionHand;
+import cn.zbx1425.mtrsteamloco.render.scripting.rail.RailScriptContext;
+import mtr.client.ClientData;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptHolder;
 import cn.zbx1425.mtrsteamloco.data.RailModelProperties;
 import cn.zbx1425.mtrsteamloco.data.RailModelRegistry;
 import mtr.item.ItemWithCreativeTabBase;
@@ -69,7 +72,7 @@ public class DisplacementTool extends ItemWithCreativeTabBase {
 
         if (railwayData == null) return InteractionResult.PASS;
 
-        Map<BlockPos, Map<BlockPos, Rail>> railMap = ((RailwayDataAccessor) railwayData).getRails();
+        Map<BlockPos, Map<BlockPos, Rail>> railMap = ((RailwayDataAccessor) railwayData).getRails();// railwayData == null ? ClientData.RAILS : 
 
         if (railMap.get(pos) == null) return InteractionResult.SUCCESS;
 
@@ -95,10 +98,7 @@ public class DisplacementTool extends ItemWithCreativeTabBase {
 
         if (player instanceof ServerPlayer sp) {
             if (world instanceof ServerLevel sw) {
-                final float fr = (float) rot;
-                sw.getServer().execute(() -> {
-                    sp.teleportTo(sw, t.x, t.y, t.z, player.getYRot() + fr, player.getXRot());
-                });
+                sp.teleportTo(sw, t.x, t.y, t.z, player.getYRot() + (float) rot, player.getXRot());
             }
         }
         return InteractionResult.SUCCESS;

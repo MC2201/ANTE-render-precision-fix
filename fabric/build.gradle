@@ -16,9 +16,9 @@ repositories {
 
 loom {
 	mixin {
-		defaultRefmapName = "mixins.mtrsteamloco_fabric.refmap.json"
+		defaultRefmapName = "mixins.mtrsteamloco.refmap.json"
 	}
-	accessWidenerPath = project(":common").loom.accessWidenerPath
+	accessWidenerPath = file("src/main/resources/mtrsteamloco.accesswidener")
 }
 
 configurations {
@@ -33,7 +33,6 @@ configurations {
 dependencies {
 	modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
 	modApi "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
-	implementation files("../checkouts/${minecraft_version}/mtr-fabric.jar")
 
 	modApi("com.terraformersmc:modmenu:${rootProject.ext.mod_menu_version}") { transitive false }
 
@@ -44,6 +43,7 @@ dependencies {
 	modApi("me.shedaniel.cloth:basic-math:0.6.1") { transitive false }
 	clothConfigJar("me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}") { transitive false }
 	clothConfigJar("me.shedaniel.cloth:basic-math:0.6.1") { transitive false }
+
 }
 
 processResources {
@@ -59,12 +59,7 @@ processResources {
 }
 
 shadowJar {
-	mergeServiceFiles() 
-
 	exclude "*.bmp"
-	exclude '**/*.kotlin_metadata'
-    exclude '**/*.kotlin_module'
-    exclude '**/*.kotlin_builtins'
 
 	if (rootProject.ext.assetExcludeFont) {
 		exclude "assets/mtr/font/**"
@@ -85,8 +80,6 @@ shadowJar {
 	}
 
 	relocate "me.shedaniel", "cn.zbx1425.mtrsteamloco.vendor.me.shedaniel"
-
-	relocate 'com.github.stuxuhai', 'vendor.cn.zbx1425.mtrsteamloco.com.github.stuxuhai'
 
 	configurations = [project.configurations.shadowCommon]
 	archiveClassifier = "dev-shadow"
@@ -118,6 +111,17 @@ task moveFabricBuilds() {
 			into "../build"
 			exclude "*dev-shadow.jar"
 			rename "(.+)", "MTR-ANTE-\$1"
+		}
+	}
+}
+
+afterEvaluate {
+	for (def task in it.tasks) {
+		if (task == tasks.build) {
+			// task.finalizedBy tasks.moveFabricBuilds
+			if (System.env.GITHUB_ACTIONS) {
+				task.dependsOn rootProject.tasks.setupLibrary
+			}
 		}
 	}
 }

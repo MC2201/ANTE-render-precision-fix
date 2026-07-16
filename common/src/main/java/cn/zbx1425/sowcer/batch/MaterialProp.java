@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.opengl.GL33;
 import cn.zbx1425.sowcer.math.Matrix4f;
+import cn.zbx1425.sowcer.vertex.VertAttrState;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -25,7 +26,7 @@ import java.util.function.Function;
 public class MaterialProp {
 
     /** Name of the shader program. Must be loaded in ShaderManager. */
-    public String shaderName = "";
+    public String shaderName;
     /** The texture to use. Null disables texture. */
     public ResourceLocation texture;
 
@@ -52,7 +53,6 @@ public class MaterialProp {
     }
     public MaterialProp(String shaderName) {
         this.shaderName = shaderName;
-        checkShaderName();
     }
 
     public MaterialProp(DataInputStream dis) throws IOException {
@@ -68,11 +68,6 @@ public class MaterialProp {
         boolean isBillboard = mtlObj.has("billboard") && mtlObj.get("billboard").getAsBoolean();
         attrState.setMatixProcess(VertAttrState.BILLBOARD);
         this.cutoutHack = mtlObj.has("cutoutHack") && mtlObj.get("cutoutHack").getAsBoolean();
-        checkShaderName();
-    }
-
-    private void checkShaderName() {
-        if (shaderName == null) shaderName = "";
     }
 
     public static final ResourceLocation WHITE_TEXTURE_LOCATION = new ResourceLocation("minecraft:textures/misc/white.png");
@@ -108,7 +103,6 @@ public class MaterialProp {
     public RenderType getBlazeRenderType() {
         RenderType result;
         ResourceLocation textureToUse = texture == null ? WHITE_TEXTURE_LOCATION : texture;
-        checkShaderName();
         switch (shaderName) {
             case "rendertype_entity_cutout":
                 result = BlazeRenderType.entityCutout(textureToUse);

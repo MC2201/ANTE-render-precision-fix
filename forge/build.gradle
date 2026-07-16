@@ -34,7 +34,7 @@ dependencies {
 	common(project(path: ":common", configuration: "namedElements")) { transitive false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionForge")) { transitive = false }
 
-	// forgeRuntimeLibrary project(":rhino")
+	forgeRuntimeLibrary project(":rhino")
 
 	modApi("me.shedaniel.cloth:cloth-config-forge:${rootProject.cloth_config_version}") { transitive false }
 	modApi("me.shedaniel.cloth:basic-math:0.6.1") { transitive false }
@@ -55,20 +55,15 @@ processResources {
 }
 
 shadowJar {
-	mergeServiceFiles()
-
 	exclude "fabric.mod.json"
 	exclude "*.bmp"
-	exclude '**/*.kotlin_metadata'
-    exclude '**/*.kotlin_module'
-    exclude '**/*.kotlin_builtins'
 
 	if (rootProject.ext.assetExcludeFont) {
 		exclude "assets/mtr/font/**"
 	}
 
 	relocate 'de.javagl', 'vendor.cn.zbx1425.sowcerext.de.javagl'
-	relocate 'com.github.stuxuhai', 'vendor.cn.zbx1425.mtrsteamloco.com.github.stuxuhai'
+	// relocate 'org.mozilla', 'vendor.cn.zbx1425.mtrsteamloco.org.mozilla'
 
 	from project.configurations.clothConfigJar.files.collect {
 		return zipTree(it).matching { filter ->
@@ -113,6 +108,17 @@ task moveForgeBuilds() {
 			into "../build"
 			exclude "*dev-shadow.jar"
 			rename "(.+)", "MTR-ANTE-\$1"
+		}
+	}
+}
+
+afterEvaluate {
+	for (def task in it.tasks) {
+		if (task == tasks.build) {
+			// task.finalizedBy tasks.moveForgeBuilds
+			if (System.env.GITHUB_ACTIONS) {
+				task.dependsOn rootProject.tasks.setupLibrary
+			}
 		}
 	}
 }

@@ -6,8 +6,8 @@ import cn.zbx1425.mtrsteamloco.data.EyeCandyProperties;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyRegistry;
 import cn.zbx1425.mtrsteamloco.gui.ErrorScreen;
 import cn.zbx1425.mtrsteamloco.render.integration.MtrModelRegistryUtil;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptHolderBase;
-import cn.zbx1425.mtrsteamloco.scripting.train.ScriptedTrainRenderer;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptHolder;
+import cn.zbx1425.mtrsteamloco.render.scripting.train.ScriptedTrainRenderer;
 import cn.zbx1425.sowcer.util.GlStateTracker;
 import mtr.client.TrainClientRegistry;
 import mtr.data.TransportMode;
@@ -35,7 +35,7 @@ public class KeyboardHandlerMixin {
                 GlStateTracker.capture();
                 MtrModelRegistryUtil.loadingErrorList.clear();
                 MtrModelRegistryUtil.resourceManager = minecraft.getResourceManager();
-                ScriptHolderBase.resetRunner();
+                // ScriptHolder.resetRunner();
 
                 for (TransportMode transportMode : TransportMode.values()) {
                     TrainClientRegistry.forEach(transportMode, (id, prop) -> {
@@ -48,7 +48,7 @@ public class KeyboardHandlerMixin {
                         }
                     });
                 }
-                for (Map.Entry<String, EyeCandyProperties> entry : EyeCandyRegistry.ELEMENTS.entrySet()) {
+                for (Map.Entry<String, EyeCandyProperties> entry : EyeCandyRegistry.elements.entrySet()) {
                     if (entry.getValue().script != null) {
                         try {
                             entry.getValue().script.reload(minecraft.getResourceManager());

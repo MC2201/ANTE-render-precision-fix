@@ -130,7 +130,7 @@ public class VertAttrState {
     }
 
     public VertAttrState setOverlayUV(int uv) {
-        this.overlayUV = AttrUtil.exchangeLightmapUVBits(uv);
+        this.overlayUV = uv;
         return this;
     }
 

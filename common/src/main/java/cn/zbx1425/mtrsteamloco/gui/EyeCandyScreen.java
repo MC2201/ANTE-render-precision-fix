@@ -6,8 +6,6 @@ import cn.zbx1425.mtrsteamloco.block.BlockEyeCandy.BlockEntityEyeCandy;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyProperties;
 import cn.zbx1425.mtrsteamloco.data.EyeCandyRegistry;
 import cn.zbx1425.mtrsteamloco.network.PacketUpdateBlockEntity;
-import cn.zbx1425.mtrsteamloco.network.PacketUpdateHoldingItem;
-
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.datafixers.util.Pair;
 import mtr.client.IDrawing;
@@ -22,15 +20,14 @@ import net.minecraft.client.gui.GuiGraphics;
 #endif
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
-import cn.zbx1425.mtrsteamloco.scripting.eyecandy.EyeCandyScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.eyecandy.EyeCandyScriptContext;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.gui.entries.StringListEntry;
+import me.shedaniel.clothconfig2.gui.entries.FloatListEntry;
 import me.shedaniel.clothconfig2.impl.builders.DropdownMenuBuilder;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import net.minecraft.client.gui.screens.Screen;
@@ -40,11 +37,8 @@ import cn.zbx1425.mtrsteamloco.ClientConfig;
 import me.shedaniel.clothconfig2.gui.entries.*;
 import net.minecraft.client.gui.components.Button;
 import cn.zbx1425.mtrsteamloco.gui.entries.*;
-import cn.zbx1425.mtrsteamloco.item.BlockItemEyeCandy;
-
 import com.mojang.blaze3d.platform.Window;
-import cn.zbx1425.mtrsteamloco.data.ConfigResponder;
-import net.minecraft.world.InteractionHand;
+import cn.zbx1425.mtrsteamloco.gui.entries.SliderOrTextFieldListEntry;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -54,26 +48,12 @@ import java.util.function.Function;
 
 public class EyeCandyScreen {
 
-    public static Screen createScreen(InteractionHand hand, Screen parent) {
-        ItemStack itemStack = Minecraft.getInstance().player.getItemInHand(hand);
-        if (itemStack.isEmpty() || !(itemStack.getItem() instanceof BlockItemEyeCandy)) {
-            return parent;
-        }
-        VirtualEyeCandy virtualEyeCandy = new VirtualEyeCandy(() -> Minecraft.getInstance().player.getItemInHand(hand).getOrCreateTagElement("BlockEntityTag"), hand);
-        return createScreen(virtualEyeCandy, parent);
-    }
-
     public static Screen createScreen(BlockPos blockPos, Screen parent) {
         Optional<BlockEntityEyeCandy> opt = getBlockEntity(blockPos);
         BlockEntityEyeCandy blockEntity = opt.orElse(null);
         if (blockEntity == null) {
-            return parent;
+            return null;
         }
-
-        return createScreen(blockEntity, parent);
-    }
-
-    public static Screen createScreen(BlockEntityEyeCandy blockEntity, Screen parent) {
 
         List<Consumer<BlockEntityEyeCandy>> update = new ArrayList<>();// updateBlockEntityCallbacks;
 
@@ -99,9 +79,27 @@ public class EyeCandyScreen {
                 Text.translatable("gui.mtrsteamloco.config.client.category.common")
         );
 
-        common.addEntry(ButtonListEntry.createCenteredInstance(
-            Text.translatable("gui.mtrsteamloco.eye_candy.present", properties.name.getString()),
-            btn -> Minecraft.getInstance().setScreen(createSelectScreen(blockEntity, () -> createScreen(blockEntity, parent)))));
+        common.addEntry(new ButtonListEntry(
+            Text.literal(""),
+#if MC_VERSION >= "11903"
+            new Button.Builder(
+                Text.translatable("gui.mtrsteamloco.eye_candy.present", 
+                    (properties != null ? (properties.name.getString() + " (" + blockEntity.prefabId + ")") : (blockEntity.prefabId + " (???)"))),
+                btn -> Minecraft.getInstance().setScreen(new SelectScreen(blockPos))).pos(0, 0).size(300, 20).build(),
+#else
+            new Button(0, 0, 300, 20, 
+                Text.translatable("gui.mtrsteamloco.eye_candy.present", 
+                    (properties != null ? (properties.name.getString() + " (" + blockEntity.prefabId + ")") : (blockEntity.prefabId + " (???)"))), 
+                btn -> Minecraft.getInstance().setScreen(new SelectScreen(blockPos))), 
+#endif
+            (e, b, a1, a2, a3, a4, a5, a6, a7, a8, a9) -> {
+                Window window = Minecraft.getInstance().getWindow();
+#if MC_VERSION >= "11903"
+                b.setX(window.getGuiScaledWidth() / 2 - 150);
+#else
+                b.x = window.getGuiScaledWidth() / 2 - 150;
+#endif
+        }));
 
         common.addEntry(entryBuilder
                 .startBooleanToggle(
@@ -155,7 +153,7 @@ public class EyeCandyScreen {
             common.addEntry(new SimpleButtonListEntry(
                 tr("adjust_settings_and_reset_pose"), 
                 Text.translatable("gui.mtrsteamloco.adjust_settings"),
-                btn -> Minecraft.getInstance().setScreen(createAdjustScreen(() -> createScreen(blockEntity, parent))),
+                btn -> Minecraft.getInstance().setScreen(createAdjustScreen(blockPos, () -> createScreen(blockPos, parent))),
                 entryBuilder.getResetButtonKey(), 
                 btn -> {
                     blockEntity.translateX = 0;
@@ -186,7 +184,7 @@ public class EyeCandyScreen {
             addScale(entries, common, entryBuilder, 8, blockEntity);
         }
 
-        List<AbstractConfigListEntry> customEntrys = ConfigResponder.getEntrysFromMaps(blockEntity.getCustomConfigs(), blockEntity.getCustomResponders(), entryBuilder, () -> createScreen(blockEntity, parent));
+        List<AbstractConfigListEntry> customEntrys = blockEntity.getCustomConfigEntrys(entryBuilder, () -> createScreen(blockPos, parent));
         for (AbstractConfigListEntry entry : customEntrys) {
             common.addEntry(entry);
         }
@@ -194,7 +192,7 @@ public class EyeCandyScreen {
         return builder.build();
     }
 
-    private static Screen createAdjustScreen(Supplier<Screen> parent) {
+    private static Screen createAdjustScreen(BlockPos blockPos, Supplier<Screen> parent) {
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(new FakeScreen(parent))
                 .setTitle(Text.translatable("gui.mtrsteamloco.adjust_settings"))
@@ -209,20 +207,13 @@ public class EyeCandyScreen {
         );
 
         List<AbstractConfigListEntry> entries = new ArrayList<>();
-        ClientConfig.eyecandyScreenGroup.getListEntries(entries, entryBuilder, () -> createAdjustScreen(parent));
+        ClientConfig.eyecandyScreenGroup.getListEntries(entries, entryBuilder, () -> createAdjustScreen(blockPos, parent));
 
         for (AbstractConfigListEntry entry : entries) {
             common.addEntry(entry);
         }
 
         return builder.build();
-    }
-
-    private static Screen createSelectScreen(BlockEntityEyeCandy blockEntity, Supplier<Screen> parent) {
-        return new SelectScreen(parent,  EyeCandyRegistry.TREE, () -> blockEntity.prefabId, (mc, screen, key) -> {
-            blockEntity.setPrefabId(key);
-            blockEntity.sendUpdateC2S();
-        }, "https://aphrodite281.github.io/mtr-ante/#/eyecandy");
     }
 
     private static void save(int type, float value, BlockEntityEyeCandy blockEntity) {
@@ -383,21 +374,99 @@ public class EyeCandyScreen {
         return Text.translatable("gui.mtrsteamloco.eye_candy." + key);
     }
 
-    private static class VirtualEyeCandy extends BlockEyeCandy.BlockEntityEyeCandy {
-        private InteractionHand hand;
-        private Supplier<CompoundTag> tagSupplier;
+    private static class SelectScreen extends SelectListScreen {
+        private static final String INSTRUCTION_LINK = "https://aphrodite281.github.io/mtr-ante/#/eyecandy";
+        private final WidgetLabel lblInstruction = new WidgetLabel(0, 0, 0, Text.translatable("gui.mtrsteamloco.eye_candy.tip_resource_pack"), () -> {
+            this.minecraft.setScreen(new ConfirmLinkScreen(bl -> {
+                if (bl) {
+                    Util.getPlatform().openUri(INSTRUCTION_LINK);
+                }
+                this.minecraft.setScreen(this);
+            }, INSTRUCTION_LINK, true));
+        });
 
-        public VirtualEyeCandy(Supplier<CompoundTag> tagSupplier, InteractionHand hand) {
-            super(new BlockPos(0, -1145141919, 0), null);
-            this.hand = hand;
-            readCompoundTag(tagSupplier.get());
-            this.tagSupplier = tagSupplier;
+        private final BlockPos editingBlockPos;
+        private final List<Pair<String, String>> pairs = new ArrayList<>();
+        private final Map<String, String> nameMap = new HashMap<>();
+
+        public SelectScreen(BlockPos blockPos) {
+            super(Text.literal("Select EyeCandy"));
+            this.editingBlockPos = blockPos;
+            Set<Map.Entry<String, EyeCandyProperties>> entries = EyeCandyRegistry.elements.entrySet();
+
+            for (Map.Entry<String, EyeCandyProperties> entry : entries) {
+                EyeCandyProperties prop = entry.getValue();
+                String prid = entry.getKey();
+                String name = prop.name.getString();
+                pairs.add(new Pair<>(prid, name + " (" + prid + ")"));
+                nameMap.put(name + " (" + prid + ")", prid);
+            }
         }
 
         @Override
-        public void sendUpdateC2S() {
-            writeCompoundTag(tagSupplier.get());
-            PacketUpdateHoldingItem.sendUpdateC2S(hand);
+        protected void init() {
+            super.init();
+
+            loadPage();
+        }
+
+        @Override
+#if MC_VERSION >= "12000"
+        public void render(@NotNull GuiGraphics guiGraphics, int i, int j, float f) {
+#else
+        public void render(@NotNull PoseStack guiGraphics, int i, int j, float f) {
+#endif
+            this.renderBackground(guiGraphics);
+            super.render(guiGraphics, i, j, f);
+            super.renderSelectPage(guiGraphics);
+        }
+
+        @Override
+        protected void loadPage() {
+            clearWidgets();
+
+            Optional<BlockEyeCandy.BlockEntityEyeCandy> optionalBlockEntity = getBlockEntity();
+            if (optionalBlockEntity.isEmpty()) { this.onClose(); return; }
+            BlockEyeCandy.BlockEntityEyeCandy blockEntity = optionalBlockEntity.get();
+            scrollList.visible = true;
+            loadSelectPage(key -> !key.equals(blockEntity.prefabId));
+            lblInstruction.alignR = true;
+            IDrawing.setPositionAndWidth(lblInstruction, width / 2 + SQUARE_SIZE, height - SQUARE_SIZE - TEXT_HEIGHT, 0);
+            lblInstruction.setWidth(width / 2 - SQUARE_SIZE * 2);
+            addRenderableWidget(lblInstruction);
+        }
+
+        @Override
+        protected void onBtnClick(String btnKey) {
+            updateBlockEntity(blockEntity -> blockEntity.setPrefabId(btnKey));
+        }
+
+        @Override
+        protected List<Pair<String, String>> getRegistryEntries() {
+            return pairs;
+        }
+
+        private void updateBlockEntity(Consumer<BlockEyeCandy.BlockEntityEyeCandy> modifier) {
+            getBlockEntity().ifPresent(blockEntity -> {
+                modifier.accept(blockEntity);
+                PacketUpdateBlockEntity.sendUpdateC2S(blockEntity);
+            });
+        }
+
+        private Optional<BlockEyeCandy.BlockEntityEyeCandy> getBlockEntity() {
+            Level level = Minecraft.getInstance().level;
+            if (level == null) return Optional.empty();
+            return level.getBlockEntity(editingBlockPos, Main.BLOCK_ENTITY_TYPE_EYE_CANDY.get());
+        }
+
+        @Override
+        public void onClose() {
+            this.minecraft.setScreen(EyeCandyScreen.createScreen(editingBlockPos, null));
+        }
+
+        @Override
+        public boolean isPauseScreen() {
+            return false;
         }
     }
 }

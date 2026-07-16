@@ -38,8 +38,8 @@ import cn.zbx1425.mtrsteamloco.Main;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.InteractionHand;
-import cn.zbx1425.mtrsteamloco.render.rail.BakedRail;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptHolderBase;
+import cn.zbx1425.mtrsteamloco.render.scripting.rail.RailScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptHolder;
 import cn.zbx1425.mtrsteamloco.data.RailModelProperties;
 import cn.zbx1425.mtrsteamloco.data.RailModelRegistry;
 
@@ -56,7 +56,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
     public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!world.isClientSide) {
-            PacketScreen.sendScreenS2C((ServerPlayer) player, "compound_creator");
+            PacketScreen.sendScreenBlockS2C((ServerPlayer) player, "compound_creator", BlockPos.ZERO);
         }
         return InteractionResultHolder.success(stack);
     }
@@ -68,7 +68,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
         } else {
             Player player = ctx.getPlayer();
             if (player instanceof ServerPlayer serverPlayer) {
-                PacketScreen.sendScreenS2C(serverPlayer, "compound_creator");
+                PacketScreen.sendScreenBlockS2C(serverPlayer, "compound_creator", BlockPos.ZERO);
             }
         }
         return InteractionResult.SUCCESS;
@@ -513,7 +513,13 @@ public class CompoundCreator extends ItemNodeModifierBase {
             RailModelProperties prop = RailModelRegistry.getProperty(((RailExtraSupplier) rail).getModelKey());
             if (prop == null) return;
             if (prop.script == null) return;
-            // 有空再做
+            RailScriptContext ctx = new RailScriptContext(rail);
+            ScriptHolder script = prop.script;
+            script.callFunctionAsync(script.createFunctions, ctx, () -> {
+                script.callFunctionAsync(script.disposeFunctions, ctx, () -> {
+                    ctx.created = false;
+                });
+            });
         }
 
         public void copyFrom(RailModifierTask other) {
@@ -616,7 +622,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
                 // Vec3 center = new Vec3((last.x + next.x) / 2, (last.y + next.y) / 2, (last.z + next.z) / 2);
 
                 Matrix4f mat = new Matrix4f();
-                mat.translate((float) last.x, (float) last.y, (float) last.z);
+                Vec3 baseWorldPos = new Vec3(last.x, last.y, last.z);
                 if (task.useYaw) {
                     final float yaw = (float) Mth.atan2(next.x - last.x, next.z - last.z);
                     mat.rotateY(yaw);
@@ -641,7 +647,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
                         BlockState state = lump.blockState;
                         Vector3f pos = mat.getTranslationPart();
                         mat.translate(-1.0F, 0, 0);
-                        BlockPos blockPos = new BlockPos((int) Math.floor(pos.x()), (int) Math.floor(pos.y()), (int) Math.floor(pos.z()));
+                        BlockPos blockPos = new BlockPos((int) Math.floor(baseWorldPos.x + pos.x()), (int) Math.floor(baseWorldPos.y + pos.y()), (int) Math.floor(baseWorldPos.z + pos.z()));
                         if (!world.getBlockState(blockPos).isAir() && !lump.replacement) continue;
                         if (state == null) continue;
                         if (blacklistedPos.contains(blockPos)) continue;
@@ -670,7 +676,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
 
         private Direction rotateDirection(Direction dir, Matrix4f mat) {
             if (dir == Direction.UP || Direction.DOWN == dir) return dir;
-            double d = dir.toYRot() + mat.getEulerAnglesYXZ().y() / Math.PI * 180 + 180;
+            double d = dir.toYRot() + mat.getEulerAnglesYXZ().y() / Math.PI * 180;
             return Direction.fromYRot(d);
         }
 

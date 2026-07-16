@@ -1,10 +1,10 @@
 package cn.zbx1425.mtrsteamloco.gui;
 
 import cn.zbx1425.mtrsteamloco.ClientConfig;
-import cn.zbx1425.mtrsteamloco.scripting.AbstractScriptContext;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptContextManager;
-import cn.zbx1425.mtrsteamloco.scripting.ScriptHolderBase;
-import cn.zbx1425.mtrsteamloco.scripting.util.client.GraphicsTexture;
+import cn.zbx1425.mtrsteamloco.render.scripting.AbstractScriptContext;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptContextManager;
+import cn.zbx1425.mtrsteamloco.render.scripting.ScriptHolder;
+import cn.zbx1425.mtrsteamloco.render.scripting.util.GraphicsTexture;
 import com.google.common.base.Splitter;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -20,16 +20,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.util.FormattedCharSequence;
-import cn.zbx1425.mtrsteamloco.scripting.util.OrderedMap;
+import cn.zbx1425.mtrsteamloco.render.scripting.util.OrderedMap;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ScriptDebugOverlay {
-
-    public static final OrderedMap<String, Object> STATIC = new OrderedMap<>();
-    // cn.zbx1425.mtrsteamloco.gui.ScriptDebugOverlay.STATIC.put(, );
 
 #if MC_VERSION >= "12000"
     public synchronized static void render(GuiGraphics vdStuff) {
@@ -44,22 +41,16 @@ public class ScriptDebugOverlay {
         matrices.pushPose();
         matrices.translate(10, 10, 0);
 
-        Map<ScriptHolderBase, List<AbstractScriptContext>> contexts = new HashMap<>();
-        for (Map.Entry<AbstractScriptContext, ScriptHolderBase> entry : ScriptContextManager.livingContexts.entrySet()) {
+        Map<ScriptHolder, List<AbstractScriptContext>> contexts = new HashMap<>();
+        for (Map.Entry<AbstractScriptContext, ScriptHolder> entry : ScriptContextManager.livingContexts.entrySet()) {
             contexts.computeIfAbsent(entry.getValue(), k -> new java.util.ArrayList<>()).add(entry.getKey());
         }
 
-        int y = 0, maxy = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+        int y = 0;
         Font font = Minecraft.getInstance().font;
         int lineHeight = Mth.ceil(font.lineHeight * 1.2f);
-
-        for (Map.Entry<String, Object> entry : STATIC.entryList()) {
-            y = drawText(vdStuff, font, entry.getKey() + ": " + entry.getValue(), 20, y, 0xFFFFFFFF);
-        }
-
-        for (Map.Entry<ScriptHolderBase, List<AbstractScriptContext>> entry : contexts.entrySet()) {
-            if (y >= maxy) break;
-            ScriptHolderBase holder = entry.getKey();
+        for (Map.Entry<ScriptHolder, List<AbstractScriptContext>> entry : contexts.entrySet()) {
+            ScriptHolder holder = entry.getKey();
             if (holder.failTime > 0) {
                 y = drawText(vdStuff, font, holder.name + " FAILED", 0, y, 0xFFFF0000);
                 if (holder.failException != null) {
@@ -69,13 +60,11 @@ public class ScriptDebugOverlay {
                 y = drawText(vdStuff, font, holder.name, 0, y, 0xFFAAAAFF);
             }
             for (AbstractScriptContext context : entry.getValue()) {
-                if (y >= maxy) break;
                 y = drawText(vdStuff, font,
-                    String.format("#%08X (%.4f ms)", context.hashCode(), context.lastExecuteDuration / 1e6),
+                    String.format("#%08X (%.2f ms)", context.hashCode(), context.lastExecuteDuration / 1000.0),
                     10, y, 0xFFCCCCFF);
                 List<Map.Entry<String, Object>> debugInfos = context.getDebugInfo().entryList();
                 for (Map.Entry<String, Object> debugInfo : debugInfos) {
-                    if (y >= maxy) break;
                     Object value = debugInfo.getValue();
                     if (value instanceof GraphicsTexture) {
                         GraphicsTexture texture = (GraphicsTexture) value;
@@ -95,6 +84,7 @@ public class ScriptDebugOverlay {
 
         matrices.popPose();
     }
+
 
 #if MC_VERSION >= "12000"
     private static int drawText(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color) {
